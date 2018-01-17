@@ -77,6 +77,28 @@ def tl_frac_flow_grad(C, M=1, omega=2/3):
     dF = Me/(C*Me - C + 1)**2
 
     return dF
+
+def tl_prod(C, M=1, omega=2/3, td=1):
+    '''
+    Computes the oil recovery in Todd-Longstaff model at time td.
+    To find the curves, just call this function repeteadly with different values of td.
+    '''
+    #first we compute the dF curve
+    dF = tl_frac_flow_grad(C, M, omega)
+    #at time td, we have
+    conc = dF*td
+    # find the portion of the curve that goes beyond production well
+    v1 = np.argwhere(conc>1)
+    v1_loc = len(v1)
+    # find area from injection well up to x=(1/Me)*td
+    area_1 = conc.min()*1
+    # find area from x=(1/Me)*td up to production well
+    area_2 = np.trapz(C[v1_loc:], -conc[v1_loc:])
+    # find area from production well up to finger tips
+    area_3 = np.trapz(C[:v1_loc], -conc[:v1_loc])
+    sanity_check = area_1 + area_2 + area_3 #must equal to 1
+    Np = area_1 + area_2
+    return Np
 #------------------------------------------------------------------------------------------------
 # Mistress-specific section
 def generate_ms_dat(mistress_version='2D', modify_key=[], file_name='default'):
