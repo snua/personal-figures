@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def diff(conc,td,diff_type='long',upper_limit=0.9,lower_limit=0.1,taylor_constant=3.625):
     '''
     Takes conc (1D numpy array)) and backcalculates the longitudinal diffusion
@@ -31,7 +32,9 @@ def frac_flow(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
 def frac_flow_grad(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
     '''
     Calculates gradient of fractional flow (dF/dS)
-    Corey's exponent is assumed the same for water and oil phases
+    Corey's exponent is assumed the same for water and oil phases.
+    The expression used here is fron symbolic differentiation on Matlab.
+    It probably can be simplify further using SciPy 'simplify' function.
     '''
     dF = (-((mw*n*((Sor + Sw - 1)/(Sor + Swc - 1))**(n - 1))/
         (mo*(-(Sw - Swc)/(Sor + Swc - 1))**n*(Sor + Swc - 1)) +
@@ -101,14 +104,45 @@ def tl_prod(C, M=1, omega=2/3, td=1):
     return Np
 #------------------------------------------------------------------------------------------------
 # Mistress-specific section
-def generate_ms_dat(mistress_version='2D', modify_key=[], file_name='default'):
+
+def delete_files(all_files=False,ext_name=''):
+    if all_files:
+        for f in glob.glob('*.rst1'):
+            os.remove(f)
+        for f in glob.glob('*.rst2'):
+            os.remove(f)
+        for f in glob.glob('*.vtk'):
+            os.remove(f)
+        for f in glob.glob('*.hist'):
+            os.remove(f)
+        for f in glob.glob('*.mout'):
+            os.remove(f)
+        for f in glob.glob('*.debug'):
+            os.remove(f)
+
+    else:
+
+        for f in glob.glob('*.'+ext_name):
+            os.remove(f)
+
+def generate_ms_dat(from_template=False,template_name=' ',mistress_version='2D', modify_key=[], out_name='default'):
     '''
     Generates .dat file for Mistress 2D or 3D.
+
+    Example:
+        tt.generate_ms_dat(modify_key=['TITLE xxxx']) #all default values, except for TITLE
+        tt.generate_ms_dat(from_template=True,template_name='test.dat',out_name='test2')
     #TO DO: add capability of adding new keyword without deleting existing one
             for e.g. multiple WELL or TOUT
     '''
-    if mistress_version == '2D':
-        template = '''
+    if from_template:
+        file = open(template_name, 'r')
+        template = file.read()
+        file.close()
+
+    else:
+        if mistress_version == '2D':
+            template = '''
 
 TITLE Example data set for MISTRESS pseudos
 NGRID   10   10
@@ -183,8 +217,8 @@ FULLSIZE
 END
 
         '''
-    elif mistress_version == '3D':
-        template = '''
+        elif mistress_version == '3D':
+            template = '''
 TITLE UNTITLE
 *
 SOLVER ICCG2S
@@ -247,7 +281,7 @@ END
     df = pd.read_csv('temp_file.csv', header=None)
     #os.remove('temp_file.csv')
     for key in modify_key:
-        a = df[0].str.contains(key[:5]) #match the first 4 letters in the keyword
+        a = df[0].str.contains(key[:6]) #match the first 4 letters in the keyword
         b = np.flatnonzero(a)
         df.iloc[int(b)] = key
 
@@ -257,17 +291,23 @@ END
     #     b = np.flatnonzero(a)
     #     df.iloc[int(b)] = key
 
-    file_name = file_name + '.dat'
+    out_name = out_name + '.dat'
     # Use this function to search for any files which match your filename
-    files_present = glob.glob(file_name)
+    files_present = glob.glob(out_name)
 
 # if no matching files, write to csv, if there are matching files, print statement
     if not files_present:
-        df.to_csv(file_name, header=None, index=None, mode='a')
-        print('Sucessfully created new .dat file')
+        df.to_csv(out_name, header=None, index=None, mode='a')
+        print('Sucessfully created new input file: '+out_name)
     else:
         print('WARNING: This file already exists!')
 
+def read_hist(file_name):
+    '''
+    Loads .hist file into separate columns
+    '''
+    hist = pd.read_table(file_name, sep=r"\s*")
+    return hist
 
 #--------------------------------------------------------------------------
 def generate_vtk(threeD_grid, variable_name, base_vtk_name, time_step):
@@ -306,7 +346,6 @@ def mix_length(C,upper_limit=0.9,lower_limit=0.1):
     L_mix = float(len(C2)-len(C1))/len(C)
 
     return L_mix
-
 
 #------------------------------------------------------------------------------------------------
 # formatting section
@@ -365,3 +404,16 @@ def jptr_pdf_template():
     textfile = open('hidecode.tplx', 'w')
     textfile.write(template)
     textfile.close()
+
+def plt_color(type='Tab',id=0):
+
+    if type == 'Tab':
+        cdict={0: 'tab:blue', 1: 'tab:orange', 2: 'tab:green', 3: 'tab:red', 4: 'tab:purple',
+           5: 'tab:brown', 6: 'tab:pink', 7: 'tab:gray', 8: 'tab:olive', 9: 'tab:cyan'}
+    else:
+        pass
+
+    return cdict[id]
+
+def test():
+    return 'Hello'
