@@ -4,6 +4,127 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+#plotting section starts---------------------------------------------------------------------
+def plt_config(use_tex=False):
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    from cycler import cycler
+
+    #mpl.style.use('classic') # change everything to the old matplotlib look
+    mpl.rcParams['image.cmap'] = 'jet'
+
+    font = {'family' : 'normal',
+        'weight' : 'bold',
+        'size'   : 14}
+
+    plt.rc('font', **font)
+    plt.rc('legend',fontsize='large') # using a named size
+    plt.rc('lines', linewidth=2.5)
+    plt.rc('axes', prop_cycle=(cycler('color', ['b', 'r', 'g', 'darkorange', 'y']) +
+                           cycler('linestyle', ['-', '--', ':', '-.','-'])))
+    plt.rc('axes', labelsize='large')
+
+    #the option to use tex formating,
+    #example:
+    # plt.title(r'$\displaystyle\sum_{n=1}^\infty\frac{-e^{i\pi}}{2^n}$!', fontsize=13)
+    # plt.legend([r'\textit{voltage}'], loc=2, fontsize=13)
+    if use_tex:
+        plt.rc('text', usetex=True)
+        plt.rc('font', **{'family':'serif', 'serif':['Computer Modern Roman'],
+                                'monospace': ['Computer Modern Typewriter']})
+    else:
+        plt.rc('font',family='serif')
+
+
+def plt_default_plot(style=1, nrows=1, ncols=1, figsize=(8,4)):
+    '''
+    Creates general charts. The parameters specified here are the ones thought to be useful as default parameters.
+    All parameters can be overridden once called.
+
+    Example usage:
+        fig, ax = tt.plt_default_plot(nrows=2, figsize=(8,8))
+        ax0, ax1 = ax.flatten()
+        ax0.plot(np.linspace(0,100,100),np.linspace(0,100,100))
+        ax1.scatter(np.linspace(0,100,100),np.linspace(0,100,100))
+    '''
+
+    import string
+    enumerate_alphabet = list(string.ascii_lowercase)
+
+    if style == 1:
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+        # ax0, ax1 = axes.flatten() # use this to assign each axis to separate variable
+        if nrows == 1 and ncols == 1:
+            axes.set_xlabel('xlabel')
+            axes.set_ylabel('ylabel')
+
+        elif (nrows == 1 and ncols > 1) or \
+             (nrows > 1 and ncols == 1):
+            for i, ax in enumerate(axes):
+                ax.set_title('('+enumerate_alphabet[i]+')')
+                ax.set_xlabel('xlabel')
+                ax.set_ylabel('ylabel')
+
+        else:
+            for i, row in enumerate(axes):
+                for j, ax in enumerate(row):
+                #pass
+                    ax.set_title('('+enumerate_alphabet[i*ncols+j]+')')
+                    ax.set_xlabel('xlabel')
+                    ax.set_ylabel('ylabel')
+
+        plt.subplots_adjust(right=0.95,left=0.05,top=0.9,bottom=0.1,hspace=0.0,wspace=0.01)
+
+    elif style == 2:
+        # This is just an example on how to overlap the axes.
+        # If overlapped axes required, use style 1 instead and use plt.subplot2grid as shown below
+        fig, axes = plt.subplots(nrows=nrows*3, ncols=ncols*3, figsize=figsize)
+
+        ax1 = plt.subplot2grid((nrows*3, nrows*3), (0, 0))
+        ax2 = plt.subplot2grid((nrows*3, nrows*3), (0, 1), colspan=2)
+        ax3 = plt.subplot2grid((nrows*3, nrows*3), (1, 0), colspan=2, rowspan=2)
+        ax4 = plt.subplot2grid((nrows*3, nrows*3), (1, 2), rowspan=2)
+
+        ax1.set_title('(a)'), ax1.set_xlabel('xlabel'), ax1.set_ylabel('ylabel')
+        ax2.set_title('(b)'), ax2.set_xlabel('xlabel'), ax2.set_ylabel('ylabel')
+        ax3.set_title('(c)'), ax3.set_xlabel('xlabel'), ax3.set_ylabel('ylabel')
+        ax4.set_title('(d)'), ax4.set_xlabel('xlabel'), ax4.set_ylabel('ylabel')
+
+
+    elif style == 11:
+        # This a sample template to plot multiple imshow figures
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+        for i, ax in enumerate(axes):
+            ax.axis('off')
+            ax.set_title('('+enumerate_alphabet[i]+')')
+            ax.imshow(np.random.randint(0,100,1000).reshape(10,100))
+
+        plt.subplots_adjust(right=0.95,left=0.05,top=0.9,bottom=0.1,hspace=0.0,wspace=0.01)
+
+    return fig, axes
+
+def plt_savefig(default_name=True, file_name='default_name.png'):
+    if default_name:
+        file_name = "".join([os.path.splitext(os.path.basename(__file__))[0], ".png"])
+        #splittext required to get rid of extension name
+
+    plt.tight_layout()
+    plt.savefig(file_name)
+
+def plt_color(type='Tab',id=0):
+    '''
+    Allows different plotting color styles to be specified from a pre-defined dictionary.
+    Example:
+        plt.scatter(np.linspace(0,100,100),np.linspace(0,100,100), c=tt.plt_color(id=1))
+    '''
+    if type == 'Tab':
+        cdict={0: 'tab:blue', 1: 'tab:orange', 2: 'tab:green', 3: 'tab:red', 4: 'tab:purple',
+           5: 'tab:brown', 6: 'tab:pink', 7: 'tab:gray', 8: 'tab:olive', 9: 'tab:cyan'}
+    else:
+        pass
+
+    return cdict[id]
+#plotting section ends---------------------------------------------------------------------
 
 def diff(conc,td,diff_type='long',upper_limit=0.9,lower_limit=0.1,taylor_constant=3.625):
     '''
@@ -404,16 +525,6 @@ def jptr_pdf_template():
     textfile = open('hidecode.tplx', 'w')
     textfile.write(template)
     textfile.close()
-
-def plt_color(type='Tab',id=0):
-
-    if type == 'Tab':
-        cdict={0: 'tab:blue', 1: 'tab:orange', 2: 'tab:green', 3: 'tab:red', 4: 'tab:purple',
-           5: 'tab:brown', 6: 'tab:pink', 7: 'tab:gray', 8: 'tab:olive', 9: 'tab:cyan'}
-    else:
-        pass
-
-    return cdict[id]
 
 def test():
     return 'Hello'
