@@ -468,6 +468,54 @@ def mix_length(C,upper_limit=0.9,lower_limit=0.1):
 
     return L_mix
 
+def vtk_dim(file_name):
+    '''
+    Returns the grid dimension of a given vtk file
+    '''
+    df = pd.read_csv(file_name, header=None);
+    dim_loc = np.flatnonzero(df[0].str.contains('DIMENSIONS'))
+    dim = df.iloc[int(dim_loc)].str.split(expand=True)
+    x_grid, y_grid, z_grid = \
+        int(dim.iloc[0,1])-1, int(dim.iloc[0,2])-1, int(dim.iloc[0,3])-1
+
+    return x_grid, y_grid, z_grid
+
+def extract_2d_vtk(file_name, variable='Concentration'):
+    '''
+    Extracts the map of a specified variable (e.g. concentration)
+    for a given vtk file
+    '''
+
+    x_grid, y_grid, z_grid = vtk_dim(file_name)
+
+    df = pd.read_csv(file_name, header=None);
+    start = np.flatnonzero(df[0].str.contains(variable))+2
+    end = start+(x_grid*y_grid);
+    map_2d = np.asfarray(df[int(start):int(end)])
+    map_2d = np.reshape(map_2d,(y_grid,x_grid)) #saturation/concentration map
+
+    return map_2d
+
+def contour(var_map=0, type='vtk', file_name='', variable='Concentration', contour_val=0.5):
+    '''
+    Takes vtk file or concentration/saturation map and
+    returns contour line and its peak-to-peak distance
+    '''
+    # we first load the concentration/saturation map
+    if type == "vtk":
+        map_2d = extract_2d_vtk(file_name=file_name, variable=variable)
+    elif type == "map":
+        map_2d = var_map
+
+    #then find the contour line
+    con = np.zeros((y_grid,1))
+    for j in range (0,y_grid):
+        con_temp = [x for x in map_2d[j,:] if x >= contour_val] # location of contour line
+        con[j,:] = (np.asarray(con_temp)).shape # contour_line
+
+    L_mix = ((np.amax(con)-np.amin(con))/x_grid) # peak-to-peak distance of the contour
+
+    return con, L_mix
 #------------------------------------------------------------------------------------------------
 # formatting section
 
