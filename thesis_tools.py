@@ -502,12 +502,16 @@ def contour(var_map=0, type='vtk', file_name='', variable='Concentration', conto
     returns contour line and its peak-to-peak distance
     '''
     # we first load the concentration/saturation map
+
+
     if type == "vtk":
+        x_grid, y_grid, z_grid = vtk_dim(file_name)
         map_2d = extract_2d_vtk(file_name=file_name, variable=variable)
     elif type == "map":
+        x_grid, y_grid, z_grid = var_map.shape
         map_2d = var_map
 
-    #then find the contour line
+    # then find the contour line
     con = np.zeros((y_grid,1))
     for j in range (0,y_grid):
         con_temp = [x for x in map_2d[j,:] if x >= contour_val] # location of contour line
