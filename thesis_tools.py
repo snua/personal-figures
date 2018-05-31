@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from scipy import optimize
+from scipy.special import erf, erfc
+
 #plotting section starts---------------------------------------------------------------------
 def plt_config(use_tex=False):
     import matplotlib as mpl
@@ -126,21 +129,65 @@ def plt_color(type='Tab',id=0):
     return cdict[id]
 #plotting section ends---------------------------------------------------------------------
 
-def diff(conc,td,diff_type='long',upper_limit=0.9,lower_limit=0.1,taylor_constant=3.625):
+#def diff(conc,td,diff_type='long',upper_limit=0.9,lower_limit=0.1,taylor_constant=3.625):
+#    '''
+#    Takes conc (1D numpy array)) and backcalculates the longitudinal diffusion
+#    based on Taylor 1953
+#    '''
+#    if diff_type == 'long': # calculate longitudinal diffusion
+#        x_upper = np.min(np.where(conc<upper_limit)) / len(conc)
+#        x_lower = np.min(np.where(conc<lower_limit)) / len(conc)
+#        diff_val = (1/td)*((x_lower - x_upper)/taylor_constant)**2
+#
+#    elif diff_type == 'trans': # TO DO: calculate longitudinal diffusion
+#        pass
+#
+#    return diff_val
+
+def diff(distance,conc,var=0.5,diff_type='long'):
     '''
-    Takes conc (1D numpy array)) and backcalculates the longitudinal diffusion
-    based on Taylor 1953
-    '''
-    if diff_type == 'long': # calculate longitudinal diffusion
-        x_upper = np.min(np.where(conc<upper_limit)) / len(conc)
-        x_lower = np.min(np.where(conc<lower_limit)) / len(conc)
-        diff_val = (1/td)*((x_lower - x_upper)/taylor_constant)**2
+    Backcalculates the longitudinal or transverse diffusion (Taylor 1953, Hiby 1962)
+    given
+        1. distance = xd for longitudinal, yd for transverse
+        2. conc = concentration to be fitted (as a function of distance)
+        3. var = td for longitudinal and xd for transverse
+    
+    Example usage:
+        
+        # C below is the tracer profile to be fitted with error function
+        xd = np.linspace(0.5/50,1,50)
+        DL, C_calc = diff(xd, C, var=0.5, diff_type='long')
+        plt.plot(xd,C)
+        plt.plot(xd,C_calc)
+    '''   
+    if diff_type == 'long': # TO DO: calculate longitudinal diffusion
+        def long_diff_func(td_xd, DL):
+                td = td_xd['td'].iloc[0] 
+                xd = td_xd['xd'].values
+                return 0.5 * (erfc((xd-td)/(2*np.sqrt(DL*xd))))
+        
+        td_xd = pd.DataFrame()
+        td_xd['xd'] = distance
+        td_xd['td'] = var
+        best_fit_DL, DL_covariance = optimize.curve_fit(long_diff_func, td_xd, conc, p0=0.0001) 
+        best_fit_conc = long_diff_func(td_xd, best_fit_DL)
+        
+        return best_fit_DL, best_fit_conc
 
-    elif diff_type == 'trans': # TO DO: calculate longitudinal diffusion
-        pass
-
-    return diff_val
-
+    elif diff_type == 'trans': # calculate transverse diffusion
+        def trans_diff_func(xd_yd, DT):
+                xd = xd_yd['xd'].iloc[0]
+                yd = xd_yd['yd'].values
+                return 1 - 0.5 * (erf((yd+0.5)/(2*np.sqrt(DT*xd)))+erf((yd-0.5)/(2*np.sqrt(DT*xd))))          
+        
+        xd_yd = pd.DataFrame()
+        xd_yd['yd'] = distance
+        xd_yd['xd'] = var
+        best_fit_DT, DT_covariance = optimize.curve_fit(trans_diff_func, xd_yd, conc, p0=0.0001)
+        best_fit_conc = trans_diff_func(xd_yd, best_fit_DT)
+        
+        return best_fit_DT, best_fit_conc
+    
 def frac_flow(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
     '''
     Calculates fractional flow of water
