@@ -567,6 +567,61 @@ def contour(var_map=0, type='vtk', file_name='', variable='Concentration', conto
     L_mix = ((np.amax(con)-np.amin(con))/x_grid) # peak-to-peak distance of the contour
 
     return con, L_mix
+
+def calc_finger(vtk_file):
+    '''
+    Calculates number of times where we have change in direction (in y- direction),
+    based on Fortran code by Ann. To get the number of finger, divide nfinmx with 2
+    '''
+    
+    C = extract_2d_vtk(vtk_file)
+    C = np.transpose(C)
+    nx, ny = C.shape
+    
+    ifxmax = 0
+    nfinmx = 0
+    small = 0.00005
+    one = 0.9999
+    
+    for i in range(nx):
+        nfingr = 0
+        
+        dcdy = C[i,1]-C[i,0]
+        if (abs(dcdy)<small): #if dc/dy too small, see whether we are in C=1 or C=0 area..
+            if(C[i,0]<small): #C=0 area
+                gdsgn1 = 1.0 #1.0 means not the area with concentration
+            elif (C[i,0]>one): #C=1 area
+                gdsgn1 = -1.0
+            else:
+                gdsgn1 = np.sign(dcdy) #0<C<1 area
+        else:
+            gdsgn1 = np.sign(dcdy)
+        
+        for j in range(1,ny-1):
+            dcdy = C[i,j+1]-C[i,j]    
+            if (abs(dcdy)<small):
+                if(C[i,0]<small):
+                    gdsgn2 = 1.0
+                elif (C[i,0]>one):
+                    gdsgn2 = -1
+                else:
+                    gdsgn2 = gdsgn1
+            else:
+                gdsgn2 = np.sign(dcdy)
+                
+            gdchng = gdsgn1*gdsgn2 #indicate positive to negative dc/dy, or vice verca
+            
+            if (gdchng<small): #negative indicates change in direction
+                nfingr = nfingr + 1.0
+                
+            gdsgn1 = gdsgn2
+            
+        if (nfingr>nfinmx):
+            nfinmx = nfingr
+            ifxmax = i
+    
+    return C, nfinmx/2
+
 #------------------------------------------------------------------------------------------------
 # formatting section
 
