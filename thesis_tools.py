@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from scipy import optimize
 from scipy.special import erf, erfc
+from scipy.integrate import simps
 
 #plotting section starts---------------------------------------------------------------------
 def plt_config(use_tex=False):
@@ -188,42 +189,120 @@ def diff(distance,conc,var=0.5,diff_type='long'):
         
         return best_fit_DT, best_fit_conc
     
-def frac_flow(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+#def frac_flow(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+#    '''
+#    Calculates fractional flow of water
+#    Corey's exponent n is assumed the same for water and oil phases
+#    '''
+#    F = (1/(1+((((1-Sw-Sor)/(1-Swc-Sor))**n*mw)/(((Sw-Swc)/(1-Swc-Sor))**n*mo))))
+#
+#    return F
+#
+#def frac_flow_grad(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+#    '''
+#    Calculates gradient of fractional flow (dF/dS)
+#    Corey's exponent is assumed the same for water and oil phases.
+#    The expression used here is fron symbolic differentiation on Matlab.
+#    It probably can be simplify further using SciPy 'simplify' function.
+#    '''
+#    dF = (-((mw*n*((Sor + Sw - 1)/(Sor + Swc - 1))**(n - 1))/
+#        (mo*(-(Sw - Swc)/(Sor + Swc - 1))**n*(Sor + Swc - 1)) +
+#        (mw*n*((Sor + Sw - 1)/(Sor + Swc - 1))**n)/(mo*(-(Sw - Swc)/(Sor + Swc - 1))**(n + 1)*
+#        (Sor + Swc - 1)))/((mw*((Sor + Sw - 1)/(Sor + Swc - 1))**n)/
+#        (mo*(-(Sw - Swc)/(Sor + Swc - 1))**n) + 1)**2);
+#
+#    return dF
+#
+#def solve_bl(initial=0.75,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+#    '''
+#    Solves Buckley-Leverett's shock front. fsolve seems not to converge 
+#    to correct solution for 'hard problems'
+#    '''
+#    from scipy.optimize import fsolve
+#
+#    def buckley_leverett(Sw):
+#        return frac_flow_grad(Sw)*(Sw-Swc) - frac_flow(Sw)
+#
+#    Swf = fsolve(buckley_leverett, initial)
+#
+#    return Swf
+
+def frac_flow(Sw,nw=2,no=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
     '''
     Calculates fractional flow of water
-    Corey's exponent n is assumed the same for water and oil phases
+    nw = Corey's exponent (water), no = Corey's exponent (oil)
     '''
-    F = (1/(1+((((1-Sw-Sor)/(1-Swc-Sor))**n*mw)/(((Sw-Swc)/(1-Swc-Sor))**n*mo))))
+    F = (1/(1+((((1-Sw-Sor)/(1-Swc-Sor))**no*mw)/(((Sw-Swc)/(1-Swc-Sor))**nw*mo))))
 
     return F
 
-def frac_flow_grad(Sw,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+def frac_flow_grad(Sw,nw=2,no=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
     '''
-    Calculates gradient of fractional flow (dF/dS)
-    Corey's exponent is assumed the same for water and oil phases.
-    The expression used here is fron symbolic differentiation on Matlab.
-    It probably can be simplify further using SciPy 'simplify' function.
-    '''
-    dF = (-((mw*n*((Sor + Sw - 1)/(Sor + Swc - 1))**(n - 1))/
-        (mo*(-(Sw - Swc)/(Sor + Swc - 1))**n*(Sor + Swc - 1)) +
-        (mw*n*((Sor + Sw - 1)/(Sor + Swc - 1))**n)/(mo*(-(Sw - Swc)/(Sor + Swc - 1))**(n + 1)*
-        (Sor + Swc - 1)))/((mw*((Sor + Sw - 1)/(Sor + Swc - 1))**n)/
-        (mo*(-(Sw - Swc)/(Sor + Swc - 1))**n) + 1)**2);
+    Calculates gradient of fractional flow (dF/dS).
+    nw = Corey's exponent (water), no = Corey's exponent (oil)
+    The expression found using the following commands:
+    
+    import sympy as sp
 
+    F, Sw, Swc, Sor, nw, no, mw, mo = sp.symbols('F Sw Swc Sor nw no mw mo')
+    F = (1/(1+((((1-Sw-Sor)/(1-Swc-Sor))**no*mw)/(((Sw-Swc)/(1-Swc-Sor))**nw*mo))))
+    dF = sp.simplify(sp.diff(F,Sw))
+    
+    '''
+
+    dF = mo*mw*((-Sw + Swc)/(Sor + Swc - 1))**nw*((Sor + Sw - 1)/(Sor + Swc - 1))**no*(-no*(Sw - Swc) + nw*(Sor + Sw - 1))/((Sw - Swc)*(mo*((-Sw + Swc)/(Sor + Swc - 1))**nw + mw*((Sor + Sw - 1)/(Sor + Swc - 1))**no)**2*(Sor + Sw - 1))
     return dF
 
-def solve_bl(initial=0.75,n=2,mw=1,mo=1, Swc=0.0, Sor=0.0):
+def solve_bl(nw=2,no=2,mw=1,mo=1,Swc=0.0,Sor=0.0):
     '''
-    Solves Buckley-Leverett's shock front
+    Solves BL using Welge's method.
+    Returns shock front saturation and velocity (Swf and vwf),
+    as well as the S and dF/dS up to shock front.
+    
     '''
-    from scipy.optimize import fsolve
+    
+    res = 500 #resolution
+    
+    S = np.linspace(Swc+1/res,1-Sor,res)
+    dFdS = frac_flow_grad(S,nw=nw,no=no,mw=mw,mo=mo,Swc=Swc,Sor=Sor)
+    
+    welge_area = np.full((res), np.nan)
+    start_index = np.nanargmax(dFdS)
+    
+    # Iteratively going through from Sat with highest dF/dS to max Sat
+    # and compare the Welge areas
+    for i in range(start_index+1,res-1):
+        Swf = S[i]
+        vwf = frac_flow_grad(Swf,nw=nw,no=no,mw=mw,mo=mo,Swc=Swc,Sor=Sor)
+        Swf_2_index = np.min(np.where(dFdS>vwf))
+        Swf_2 = S[Swf_2_index]
+        
+        # Compute Welge areas using simple geometries 
+        y1 = dFdS[np.where(dFdS>vwf)]
+        area_1a = simps(y1, dx=(1-Swc-Sor)/res)
+        area_1b = (Swf-Swf_2)*vwf
+        
+        y2= dFdS[:Swf_2_index]
+        area_2a = (Swf_2-Swc)*vwf
+        area_2b = simps(y2, dx=(1-Swc-Sor)/res)
+        
+        # Shock front sat is when welge_area=0
+        welge_area[i] = np.abs((area_1a-area_1b)-(area_2a-area_2b))
+        # Activate this plots for troubleshooting
+#        plt.plot(dFdS,S)  
+#        plt.plot([vwf,vwf], [0,Swf], '--k')
+#        plt.scatter(vwf,Swf,c='b')
+#        plt.scatter(vwf,Swf_2,c='r')
+#        plt.title('Ignore this plot!!')   
 
-    def buckley_leverett(Sw):
-        return frac_flow_grad(Sw)*(Sw-Swc) - frac_flow(Sw)
-
-    Swf = fsolve(buckley_leverett, initial)
-
-    return Swf
+    # Select Sat that meets the requirement  welge_area~=0
+    selected_index = np.nanargmin(welge_area)
+    Swf = S[selected_index]
+    vwf = dFdS[selected_index]
+    S_solution = S[selected_index:]
+    v_solution = dFdS[selected_index:]
+    
+    return Swf, vwf, S_solution, v_solution 
 
 def tl_frac_flow(C , M=1, omega=2/3):
     '''
