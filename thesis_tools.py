@@ -701,6 +701,22 @@ def calc_finger(vtk_file):
     
     return C, nfinmx/2
 
+def extract_conc(file_name,upper_limit=0.9,lower_limit=0.1):
+    '''
+    Extracts the average concentration computed in Mistress (i.e. .conc file).
+    The first column of the table is the time step. For each row (hence for 
+    each time step), the average concentration across Y-axis is stored from 
+    second column to the last column.
+    '''   
+    df = pd.read_csv(file_name, header=None, skiprows=1, delim_whitespace=True)
+    C = df.values
+    mix_len = np.full((len(df),2), np.nan)
+    mix_len[:,0] = C[:,0]
+    for j in range(len(df)):
+        mix_len[j,1] = mix_length(C[j,1:]) # use the existing function to calculate mixing length
+    
+    return mix_len
+
 #------------------------------------------------------------------------------------------------
 # formatting section
 
