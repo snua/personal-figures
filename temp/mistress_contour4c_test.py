@@ -104,6 +104,7 @@ store_fingers = np.full((len(time_array),2), np.nan)
 
 multiplier = 10
 for Time in range(int(len(time_array)/multiplier)):
+#for Time in range(18,19):
     for c_lvl in range(1,2):
         
         x_dist = np.full((500,2), np.nan)
@@ -121,11 +122,12 @@ for Time in range(int(len(time_array)/multiplier)):
         # find where the change of sign occur
         a = longest_line[:,0] - np.roll(longest_line[:,0], 1) 
         asign = np.sign(a)
-        
+                   
         for i in range(len(asign)):
             if asign[i]==0:
                 asign[i]=asign[i-1]
-        
+#----------------------------------------------------------------------------------    
+        #original method        
         signchange = ((np.roll(asign, 1) - asign) != 0).astype(int)
         
         arg_signchange = np.argwhere(signchange==1) 
@@ -139,17 +141,27 @@ for Time in range(int(len(time_array)/multiplier)):
         for s, enum in enumerate(arg_signchange-2):
             if abs(x_dist[s+1,0] - x_dist[s,0])>1:
                 x_dist2[s,:] = x_dist[s+1,:]
-                plt.scatter(longest_line[enum,0], longest_line[enum,1])
+                #plt.scatter(longest_line[enum+1,0], longest_line[enum+1,1])
         
         nfingers = np.count_nonzero(~np.isnan(x_dist2[:,0]))/2
-#        plt.show()
-    #-------------------------------------------------------------------
-         #only count the fingers if contour's peak-to-peak is significant enough
-#        if np.max(contour[:,0])-np.min(contour[:,0])<3:
-#            store[Time,0,c_lvl], store[Time,1,c_lvl] = round(time,5), nfingers
-#        else:
-#            store[Time,0,c_lvl], store[Time,1,c_lvl] = round(time,5), nfingers
+#----------------------------------------------------------------------------------
+        #this method potentially can reduce artifact peaks at the reservoir edges
+        bsign = asign
         
+        count = []
+        for i in range(1,len(bsign)-1): # ignore the first point
+            if bsign[i+1]-bsign[i]!=0: #where the change in sign occurs
+                count = np.append(count,i)
+
+        npoints = 0
+        for i in range(len(count)-1):
+            # make sure peak-to-valley distance is significant enough
+            if abs(longest_line[int(count[i+1]),0] - longest_line[int(count[i]),0])>1: 
+                plt.scatter(longest_line[int(count[i]),0], longest_line[int(count[i]),1])
+                plt.scatter(longest_line[int(count[i+1]),0], longest_line[int(count[i+1]),1])
+                npoints = npoints + 1
+        nfingers = npoints/2
+#-------------------------------------------------------------------------------------               
         store[Time,0,c_lvl], store[Time,1,c_lvl] = round(time,5), nfingers
         store_fingers[Time,:] = [round(time,5), nfingers]
 
